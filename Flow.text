@@ -1,0 +1,24 @@
+[ Internal Processes ]
+        │
+        ▼
+┌──────────────────────────┐
+│ Schema Emitter (Introspection Feed) │
+│  - Streams cognitive events         │
+│  - Publishes activation data        │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌──────────────────────────┐
+│ ESN Monitor (Dashboard Core) │
+│  - Collects schema updates   │
+│  - Detects instability / loops│
+│  - Measures systemic health  │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌──────────────────────────┐
+│ Feedback Controller │
+│  - Suggests regulation actions │
+│  - Adjusts activation weights  │
+│  - Triggers stabilization or learning │
+└──────────────────────────┘
