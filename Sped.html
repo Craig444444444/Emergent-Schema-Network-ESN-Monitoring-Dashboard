@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESN Architecture Dashboard with SPED Cortex Coordinator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons for UI elements -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Load Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Load Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the dark theme and visualizations */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate-900 */
+            color: #e2e8f0; /* Slate-200 */
+        }
+        .card {
+            background-color: #1e293b; /* Slate-800 */
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        /* Custom styles for visualization elements */
+        #spm-path-line {
+            transition: all 0.5s ease-in-out;
+            width: 0;
+        }
+        #spm-particle {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background-color: #3b82f6; /* Blue-500 */
+            position: absolute;
+            opacity: 0;
+            transition: all 0.5s ease-in-out;
+            z-index: 10;
+        }
+        .processed-token {
+            border-bottom: 2px solid #10b981; /* Emerald-500 */
+            font-weight: 600;
+        }
+        #status-indicator {
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            transition: background-color 0.5s ease;
+        }
+        /* CSC Canvas Styling */
+        #csc-canvas {
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+        }
+        /* Self-Correction Loop SVG Styling */
+        .loop-step {
+            transition: fill 0.3s ease;
+        }
+        
+        /* Unified Data Pipeline Table Styling */
+        .pipeline-table th, .pipeline-table td {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+            vertical-align: top;
+            font-size: 0.875rem;
+        }
+        .pipeline-table th {
+            font-weight: 600;
+            color: #94a3b8; /* Slate-400 */
+            font-size: 0.75rem;
+            background-color: #1e293b; /* Slate-800 */
+        }
+        .pipeline-table td {
+            color: #e2e8f0;
+        }
+        .pipeline-table tr:nth-child(even) {
+            background-color: #1f2937; /* Darker stripe */
+        }
+        
+        /* Styling for the IIT Complexity Box */
+        .iit-complexity-box {
+            background-color: #0c4a6e; /* Darker Cyan/Blue */
+            border-left: 4px solid #06b6d4; /* Cyan-500 */
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        .math-block {
+            background-color: #164e63; /* Even darker blue */
+            padding: 0.75rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 1.1rem;
+            text-align: center;
+            margin: 0.75rem 0;
+            color: #bae6fd; /* Light Cyan */
+        }
+        
+        /* SPED Cortex Styles */
+        .sped-cortex-panel {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 1px solid #475569;
+            position: relative;
+            overflow: hidden;
+        }
+        .sped-cortex-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+            animation: gradient-flow 3s ease infinite; /* Renamed animation */
+        }
+        /* Renamed animation to avoid conflict */
+        @keyframes gradient-flow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .sped-instance {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            position: relative;
+        }
+        .sped-instance.active {
+            border-color: #3b82f6;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+        .sped-instance.strategic {
+            border-left: 3px solid #3b82f6;
+        }
+        .sped-instance.tactical {
+            border-left: 3px solid #10b981;
+        }
+        .sped-instance.prime {
+            border-left: 3px solid #f59e0b;
+        }
+        .sped-connection {
+            position: absolute;
+            background-color: #4b5563;
+            z-index: -1;
+        }
+        
+        /* Chat bubble styles for SPED Cortex */
+        .chat-bubble-user { 
+            background-color: #4F46E5; /* Indigo */
+            color: white;
+            border-radius: 1.25rem 1.25rem 0.25rem 1.25rem; 
+            box-shadow: 0 4px 4px rgba(0, 0, 0, 0.3);
+        }
+        .chat-bubble-ai { 
+            background-color: #1E293B; /* Dark Blue-Gray */
+            border-radius: 1.25rem 1.25rem 1.25rem 0.25rem; 
+            color: #E2E8F0;
+            box-shadow: 0 4px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Code Block Styling for Tool Execution Log */
+        .code-execution-output {
+            background-color: #2D3748; /* A slightly lighter dark shade */
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #A0D0FF; /* Light blue for output */
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .code-execution-output .error {
+            color: #F87171; /* Red for errors */
+            font-weight: bold;
+        }
+
+        /* Styling for prose (Markdown rendering via marked.js) */
+        /* These styles will be applied to the output of marked.parse() */
+        .prose-output {
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        .prose-output h1, .prose-output h2, .prose-output h3 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        .prose-output h1 { font-size: 1.5rem; color: #f87171; }
+        .prose-output h2 { font-size: 1.25rem; color: #38bdf8; }
+        .prose-output h3 { font-size: 1.1rem; color: #fcd34d; }
+        .prose-output p { margin-bottom: 1rem; }
+        .prose-output blockquote {
+            margin-left: 0;
+            padding-left: 1rem;
+            border-left: 4px solid #4f46e5;
+            font-style: italic;
+            color: #cbd5e1; /* Slate-300 */
+        }
+        .prose-output code {
+            color: #a0d0ff;
+            background-color: #2d3748;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+            font-family: 'Fira Code', monospace;
+        }
+        .prose-output pre {
+            background-color: #2d3748;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        .prose-output pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .prose-output strong { color: #fff; }
+        .prose-output table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5em 0;
+        }
+        .prose-output th, .prose-output td {
+            border: 1px solid #334155; /* Slate-700 */
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+        }
+        .prose-output th {
+            background-color: #1e293b; /* Slate-800 */
+            font-weight: 600;
+            color: #94a3b8; /* Slate-400 */
+        }
+        .prose-output ul, .prose-output ol {
+            padding-left: 1.5rem;
+            margin: 1em 0;
+        }
+        .prose-output li { margin-top: 0.25rem; }
+        .prose-output ul { list-style-type: disc; }
+        .prose-output ol { list-style-type: decimal; }
+        
+        /* Tab styles */
+        .tab {
+            overflow: hidden;
+            border-bottom: 1px solid #374151;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            transition: 0.3s;
+            color: #9ca3af;
+        }
+        .tab button:hover {
+            background-color: #374151;
+        }
+        .tab button.active {
+            color: #3b82f6;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .tabcontent {
+            display: none;
+            padding: 0.75rem 0;
+            animation: fadeEffect 1s;
+        }
+        @keyframes fadeEffect {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+
+        /* CSS Spinner for Loading Modal */
+        .css-spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #6d28d9; /* Purple-700 */
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+    <header class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-white">ESN Architecture Dashboard with SPED Cortex Coordinator</h1>
+        <p class="text-lg text-slate-400">Unified API & Visualization of Core Components with Hierarchical Multi-Agent Coordination</p>
+    </header>
+    <!-- Main Dashboard Layout -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Column 1: Core Systems -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- SPED Cortex Coordinator Panel -->
+            <div class="card p-4 sped-cortex-panel">
+                <h2 class="text-2xl font-semibold mb-3 text-purple-400 flex items-center">
+                    <i data-lucide="brain" class="mr-2 h-6 w-6"></i>
+                    SPED Cortex Coordinator
+                </h2>
+                <p class="text-sm text-slate-400 mb-3">Hierarchical multi-agent system coordinating ESN components</p>
+                
+                <!-- Tab Navigation -->
+                <div class="tab">
+                    <button class="tablinks active" onclick="openTab(event, 'cortex-control')">Control</button>
+                    <button class="tablinks" onclick="openTab(event, 'cortex-instances')">Instances</button>
+                    <button class="tablinks" onclick="openTab(event, 'cortex-chat')">Chat</button>
+                    <button class="tablinks" onclick="openTab(event, 'cortex-metrics')">Metrics</button>
+                </div>
+                
+                <!-- Tab Content -->
+                <div id="cortex-control" class="tabcontent" style="display:block;">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <!-- Layer Status -->
+                        <div class="p-3 bg-slate-700 rounded-lg">
+                            <div class="text-xs text-slate-400">Prime Layer</div>
+                            <div class="text-2xl font-bold text-purple-400" id="prime-status">1 / 1</div>
+                            <div class="text-xs text-slate-500">Active instances</div>
+                        </div>
+                        
+                        <div class="p-3 bg-slate-700 rounded-lg">
+                            <div class="text-xs text-slate-400">Strategic Layer</div>
+                            <div class="text-2xl font-bold text-blue-400" id="strategic-status">0 / 10</div>
+                            <div class="text-xs text-slate-500">Active instances</div>
+                        </div>
+                        
+                        <div class="p-3 bg-slate-700 rounded-lg">
+                            <div class="text-xs text-slate-400">Tactical Layer</div>
+                            <div class="text-2xl font-bold text-green-400" id="tactical-status">0 / 100</div>
+                            <div class="text-xs text-slate-500">Active instances (sparse activation: 10%)</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Query Interface -->
+                    <div class="mb-4">
+                        <textarea 
+                            id="cortex-query" 
+                            rows="3" 
+                            placeholder="Enter complex query for SPED Cortex to coordinate ESN components..."
+                            class="w-full px-3 py-2 bg-slate-700 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500"
+                        ></textarea>
+                        <button 
+                            onclick="processCortexQuery()" 
+                            class="mt-2 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition"
+                        >
+                             🧠  Process with Cortex
+                        </button>
+                    </div>
+                    
+                    <!-- Results Display -->
+                    <div id="cortex-output" class="p-3 bg-slate-900 rounded-lg min-h-32 overflow-y-auto max-h-96">
+                        <div class="text-xs text-slate-500">Cortex output will appear here...</div>
+                    </div>
+                </div>
+                
+                <div id="cortex-instances" class="tabcontent">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h3 class="text-lg font-medium mb-2 text-purple-300">Prime Instance</h3>
+                            <div id="prime-instance" class="sped-instance prime">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold">PRIME-001</span>
+                                    <span class="text-xs text-gray-400">Orchestrator</span>
+                                </div>
+                                <div class="text-xs text-gray-400 mt-1">Status: <span id="prime-instance-status">Idle</span></div>
+                                <div class="text-xs text-gray-400">Queries: <span id="prime-instance-queries">0</span></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-medium mb-2 text-blue-300">Strategic Instances</h3>
+                            <div id="strategic-instances" class="max-h-64 overflow-y-auto">
+                                <!-- Strategic instances will be added here -->
+                            </div>
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <h3 class="text-lg font-medium mb-2 text-green-300">Tactical Instances (Sample)</h3>
+                            <div id="tactical-instances" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto">
+                                <!-- Tactical instances will be added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="cortex-chat" class="tabcontent">
+                    <div id="cortex-chat-area" class="p-3 bg-slate-900 rounded-lg min-h-64 overflow-y-auto max-h-96 mb-4">
+                        <div class="text-xs text-slate-500">Chat history will appear here...</div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3">
+                        <input 
+                            type="text" 
+                            id="cortex-chat-input" 
+                            placeholder="Enter message..." 
+                            class="flex-1 p-3 rounded-full bg-gray-800 text-white border border-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+                            onkeydown="if(event.key === 'Enter') sendCortexChatMessage()"
+                        >
+                        <button 
+                            onclick="sendCortexChatMessage()" 
+                            class="p-3 bg-purple-600 hover:bg-purple-500 rounded-full text-white shadow-lg transition"
+                        >
+                            <i data-lucide="send" class="h-5 w-5"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="cortex-metrics" class="tabcontent">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                        <div class="p-2 bg-slate-700 rounded">
+                            <div class="text-slate-400">Total Queries</div>
+                            <div class="text-lg font-bold text-white" id="cortex-total-queries">0</div>
+                        </div>
+                        <div class="p-2 bg-slate-700 rounded">
+                            <div class="text-slate-400">Avg Latency</div>
+                            <div class="text-lg font-bold text-white" id="cortex-avg-latency">0ms</div>
+                        </div>
+                        <div class="p-2 bg-slate-700 rounded">
+                            <div class="text-slate-400">API Calls</div>
+                            <div class="text-lg font-bold text-white" id="cortex-api-calls">0</div>
+                        </div>
+                        <div class="p-2 bg-slate-700 rounded">
+                            <div class="text-slate-400">Total Cost</div>
+                            <div class="text-lg font-bold text-green-400" id="cortex-cost">$0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h3 class="text-lg font-medium mb-2 text-purple-300">Performance Chart</h3>
+                        <div class="bg-slate-800 p-4 rounded-lg h-64 flex items-center justify-center">
+                            <canvas id="cortex-chart" class="w-full h-full"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Part 1: Causal Schema Core (CSC) Visualization -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-cyan-400">1. Causal Schema Core (CSC) Visualization</h2>
+                <p class="text-sm text-slate-400 mb-3">Nodes and Links reflect the Datalog Knowledge Graph structure. (State is persistent.)</p>
+                <div class="flex space-x-2 mb-3">
+                    <button onclick="resetView()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm transition">Reset View</button>
+                    <input type="text" id="node-search" oninput="searchNode(this.value)" placeholder="Search concept..." class="px-3 py-1 flex-grow bg-slate-700 rounded-lg text-white placeholder-slate-400 text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="relative w-full aspect-video">
+                    <canvas id="csc-canvas" class="w-full h-full"></canvas>
+                </div>
+                <div id="hover-info" class="mt-2 p-2 bg-slate-700 rounded text-xs min-h-8">Hover over a node or link.</div>
+            </div>
+            <!-- Part 3 & 4: Flow and Correction Loop -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Part 3: Schema Projection Module (SPM) Visualization -->
+                <div class="card p-4">
+                    <h2 class="text-2xl font-semibold mb-3 text-emerald-400">3. Schema Projection Module (SPM)</h2>
+                    <p class="text-sm text-slate-400 mb-4">Linguistic Data $\leftrightarrow$ Conceptual Schema (The Neuro-Symbolic Bridge)</p>
+                    <div class="relative flex justify-between items-center h-20 bg-slate-700 p-4 rounded-lg">
+                        <div id="lfe-box" class="bg-indigo-500 p-2 rounded text-xs font-bold w-1/4 text-center">LFE</div>
+                        <div class="relative flex-grow h-1 mx-4">
+                            <div id="spm-path-line" class="absolute h-full w-full bg-slate-500 rounded"></div>
+                            <div id="spm-particle" class="absolute top-1/2 -translate-y-1/2"></div>
+                        </div>
+                        <div id="csc-box-flow" class="bg-cyan-500 p-2 rounded text-xs font-bold w-1/4 text-center">CSC</div>
+                    </div>
+                    <button onclick="triggerSPM()" class="mt-4 px-3 py-1 w-full bg-emerald-600 hover:bg-emerald-700 rounded-lg text-sm transition">Simulate Projection</button>
+
+                </div>
+                <!-- Part 4: Dynamic Self-Correction Loop (Critic) -->
+                <div class="card p-4">
+                    <h2 class="text-2xl font-semibold mb-3 text-fuchsia-400">4. Dynamic Self-Correction Loop (Critic)</h2>
+                    <p class="text-sm text-slate-400 mb-4">Constraint Backtracking & Belief Revision via Least Certainty Heuristic</p>
+                     <div class="bg-slate-900 p-3 rounded-lg text-xs font-mono mb-4">
+                        <p class="text-white font-bold mb-1">Repair Algorithm (Datalog Integrity Check):</p>
+                        <ol class="list-decimal list-inside text-slate-400">
+                            <li>**Justification:** Identify conflicting facts (e.g., <code class="text-white">causes(A, B)</code> and <code class="text-white">causes(B, A)</code>).</li>
+                            <li>**Heuristic:** Compare <code class="text-white">Strength (S)</code> scores. Select the lower score.</li>
+                            <li>**Repair (Contraction):** Remove the least certain fact to restore the DAG structure.</li>
+                        </ol>
+                    </div>
+                    <div class="flex justify-center items-center">
+                        <svg viewBox="0 0 100 100" class="w-full h-32">
+                            <defs>
+                                <path id="loopPath" d="M 50 10 A 40 40 0 1 1 50 90 A 40 40 0 1 1 50 10"/>
+                            </defs>
+                            <use xlink:href="#loopPath" fill="none" stroke="#475569" stroke-width="2"/>
+                            
+                            <!-- Steps and Text -->
+                            <circle id="step1" class="loop-step" cx="50" cy="10" r="4" fill="#60a5fa" />
+                            <text x="50" y="5" text-anchor="middle" font-size="8" fill="#e2e8f0">Input</text>
+                            
+                            <circle id="step2" class="loop-step" cx="10" cy="50" r="4" fill="#fb923c" />
+                            <text x="5" y="55" text-anchor="end" font-size="8" fill="#e2e8f0">Reasoning</text>
+                            
+                            <circle id="step3" class="loop-step" cx="50" cy="90" r="4" fill="#ef4444" />
+                            <text x="50" y="98" text-anchor="middle" font-size="8" fill="#e2e8f0">Critic</text>
+                            
+                            <circle id="step4" class="loop-step" cx="90" cy="50" r="4" fill="#10b981" />
+                            <text x="95" y="55" text-anchor="start" font-size="8" fill="#e2e8f0">Modify</text>
+                            
+                            <!-- Animated Pulse -->
+                            <circle id="correction-pulse" r="5" fill="#fuchsia-500" style="opacity: 0;">
+                                <animateMotion id="pulse-animation" dur="4s" repeatCount="indefinite" rotate="auto">
+                                    <mpath xlink:href="#loopPath"/>
+                                </animateMotion>
+                            </circle>
+                        </svg>
+                        <button onclick="triggerCorrectionLoop()" class="ml-4 px-3 py-1 bg-fuchsia-600 hover:bg-fuchsia-700 rounded-lg text-sm transition h-8">Trigger Cycle</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Part 5: Linguistic Front-End (LFE) Visualization -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-yellow-400">5. Linguistic Front-End (LFE)</h2>
+                <p class="text-sm text-slate-400 mb-3">Token Processing and Prediction Confidence</p>
+                <div class="flex items-center space-x-4">
+                    <input type="text" id="lfe-input" value="What is the causal relationship between sunlight and temperature?" placeholder="Enter query..." class="px-3 py-2 flex-grow bg-slate-700 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-yellow-500">
+                    <button onclick="processLFE()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-sm transition">Process Tokens</button>
+                </div>
+                
+                <div id="token-container" class="mt-4 p-3 bg-slate-700 rounded-lg text-lg text-slate-300 min-h-12 border-b-2 border-slate-600">
+                    <!-- Tokens will appear here -->
+                </div>
+                
+                <div id="probability-bars" class="mt-4 space-y-2">
+                    <div class="text-sm font-medium">Confidence:</div>
+                    <div class="h-6 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div id="bar-high" class="h-full bg-green-500 text-xs text-black font-bold flex items-center justify-end pr-2 transition-all duration-1000" style="width: 0%;">High</div>
+                    </div>
+                    <div class="h-6 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div id="bar-medium" class="h-full bg-yellow-500 text-xs text-black font-bold flex items-center justify-end pr-2 transition-all duration-1000" style="width: 0%;">Medium</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Column 2: Status, Memory & Research -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- NEW: Part 10. IIT Computational Limit Analysis -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-cyan-400">10. IIT Computational Limit Analysis</h2>
+                <p class="text-sm text-slate-300 mb-4">The precise calculation of Integrated Information ($\Phi$) is computationally **super-exponential**, defining a hard limit for conscious system analysis.</p>
+                <div class="iit-complexity-box">
+                    <h3 class="text-lg font-bold text-cyan-200 mb-2">The MIP Search Space</h3>
+                    <p class="text-sm text-slate-200 mb-3">The challenge lies in finding the **Minimum Information Partition (MIP)**, which requires checking every possible way to bipartition the system. For a system of $N$ elements, the number of non-trivial bipartitions is:</p>
+                    
+                    <div class="math-block">
+                        <span class="text-pink-400">Number of Partitions</span> $= 2^{N-1} - 1$
+                    </div>
+                    <h3 class="text-base font-bold text-cyan-200 mt-4 mb-2">Example: A Small $N=128$ Subsystem</h3>
+                    <p class="text-sm text-slate-200">If a subsystem contains only $N=128$ nodes, the search space for $\Phi$ is:</p>
+                    <div class="mt-2 text-sm font-mono text-white">
+                        $2^{127} - 1$
+                    </div>
+                    <p class="mt-2 text-sm font-bold text-white">
+                        Magnitude: $\approx 1.701 \times 10^{38}$
+                    </p>
+                    <p class="text-xs text-slate-400 mt-3 border-t border-slate-600 pt-2">
+                        **Implication:** If a supercomputer checked $10^9$ partitions per second, this calculation would still take over **5.3 trillion years**. This confirms that $\Phi$ is a purely **theoretical metric** for large systems.
+                    </p>
+                </div>
+            </div>
+            <!-- Part 9: Architecture & Complexity Analysis (Existing - kept for context) -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-red-400">9. Architecture & Complexity Analysis</h2>
+                <p class="text-sm text-slate-400 mb-4">Measured Gains: Hybrid Pruning vs. Pure Symbolic Reasoning (Datalog/SPARQL)</p>
+                <div class="space-y-3">
+                    <!-- Existing VDB Pruning Effect -->
+                    <div class="p-3 bg-slate-700 rounded-lg">
+                        <h3 class="text-base font-medium text-white mb-1">VDB Pruning Effect (GraphRAG / Neo4j)</h3>
+                        <p class="text-xs text-slate-300">Semantic similarity search in VDB quickly identifies relevant sub-graphs, reducing the starting size for the Datalog reasoner.</p>
+                        <div class="mt-2 text-sm">
+                            <span class="font-bold text-green-400">Search Space Reduction:</span> $\approx 85-98\%$
+                        </div>
+                    </div>
+                    <!-- Existing Latency Reduction -->
+                    <div class="p-3 bg-slate-700 rounded-lg">
+                        <h3 class="text-base font-medium text-white mb-1">Latency Reduction on Recursive Queries</h3>
+                        <p class="text-xs text-slate-300">Hybrid approach achieves massive speedup by avoiding the combinatorial explosion inherent in pure symbolic recursion.</p>
+                        <div class="mt-2 text-sm">
+                            <span class="font-bold text-green-400">Latency Improvement:</span> $\approx 150-500 \text{x}$ (for $10^9$ edges)
+                        </div>
+                    </div>
+                    <!-- Existing Resource Efficiency -->
+                    <div class="p-3 bg-slate-700 rounded-lg">
+                        <h3 class="text-base font-medium text-white mb-1">Resource Efficiency & Scalability</h3>
+                        <p class="text-xs text-slate-300">The VDB acts as a high-speed filter, making the entire system horizontally scalable without requiring exponential cluster size increase.</p>
+                        <div class="mt-2 text-sm">
+                            <span class="font-bold text-green-400">CPU-Hour Savings:</span> Up to $65-80\%$
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Part 8: Scalability Mitigation Strategies -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-indigo-400">8. Scalability Mitigation Strategies</h2>
+                <p class="text-sm text-slate-400 mb-4">Addressing the "Force-Directed Simulation Explosion" (Combinatorial Complexity) in Symbolic Reasoning.</p>
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Strategy 1: Distribution & Partitioning</h3>
+                <p class="text-xs text-slate-400 mb-3">Uses distributed environments (e.g., Apache Spark) with advanced graph partitioning techniques to minimize inter-node communication (edge-cut) and balance computational load for Datalog processing.</p>
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Strategy 2: Approximate Query Processing (AQP)</h3>
+                <p class="text-xs text-slate-400 mb-3">Trades strict Datalog query accuracy for significant latency reduction by using sampling, synopses, or ML-based estimation. Critical for interactive analysis.</p>
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Strategy 3: Hybrid Indexing (VDBs)</h3>
+                <p class="text-xs text-slate-400">Vector Databases (VDBs) index the semantic layer of the CSC. A fast semantic search in the VDB **prunes the search space** before the expensive logical traversal begins in the Datalog reasoner, effectively mitigating the complexity bottleneck.</p>
+            </div>
+            <!-- CSC Datalog Schema & Rules -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-indigo-400">CSC Datalog Schema (The Meta-Structure)</h2>
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Core Predicates (Facts)</h3>
+                <ul class="text-xs space-y-1 pl-4 list-disc text-slate-400">
+                    <li><code class="text-white">is_a(Entity, Type)</code>: Ontology for arguments.</li>
+                    <li><code class="text-white">has_state(E, A, V)</code>: Entity attributes (e.g., pH level).</li>
+                    <li><code class="text-white">causes(C, E, S)</code>: Causal Link with Strength.</li>
+                    <li><code class="text-white">precedes(E1, E2)</code>: Temporal ordering.</li>
+                    <li><code class="text-white">requires_context(Link, Fact)</code>: Preconditions for a link.</li>
+                    <li><code class="text-white">executed(A, Act, T)</code>: Agent intervention.</li>
+                </ul>
+                <h3 class="text-lg font-medium mt-4 mb-2 text-slate-300">Key Datalog Rules</h3>
+                <div class="bg-slate-900 p-3 rounded-lg text-xs font-mono overflow-auto">
+                    <p class="text-green-400">// Transitive Causality</p>
+                    <p><code class="text-white">indirect_causes(C, E) ← causes(C, I, _), causes(I, E, _).</code></p>
+                    <p class="text-green-400">// Active Causal Links (For Critic)</p>
+                    <p><code class="text-white">active_causes(C, E) ← requires_context(causes(C, E, _), Ctx), Ctx.</code></p>
+                    <p class="text-red-400">// Structural Integrity Constraint (No Cycles)</p>
+                    <p><code class="text-red-400">false ← causes(A, B, _), causes(B, A, _).</code></p>
+                </div>
+            </div>
+            
+            <!-- Part 7: Unified Data Preparation Pipeline -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-orange-400">7. Unified Data Preparation Pipeline</h2>
+                <p class="text-sm text-slate-400 mb-4">Sequential implementation of enhancement domains on shared raw data for ESN consumption. (State is persistent.)</p>
+                <div class="flex flex-col space-y-4">
+                    <!-- Action Buttons -->
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <button onclick="step1Programming()" class="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded-lg transition">1. Programming: Flatten Status</button>
+                        <button onclick="step2MLStats()" class="px-3 py-1 bg-pink-600 hover:bg-pink-700 rounded-lg transition">2. ML/Stats: Impute & Scale</button>
+                        <button onclick="step3Marketing()" class="px-3 py-1 bg-teal-600 hover:bg-teal-700 rounded-lg transition">3. Marketing: Verify & Enrich</button>
+                        <button onclick="step4Software()" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition">4. Software: Conditional Format</button>
+                    </div>
+                    <!-- Pipeline Output -->
+                    <div class="bg-slate-900 p-3 rounded-lg overflow-x-auto">
+                        <h3 class="text-sm font-medium mb-2 text-slate-300" id="pipeline-title">Raw Data List:</h3>
+                        <div id="pipeline-output-container" class="h-48 overflow-y-auto">
+                            <table class="pipeline-table w-full whitespace-nowrap" id="pipeline-table">
+                                <!-- Table content generated by JS -->
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Part 2: Persistent State & Memory System Visualization -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-red-400">2. Persistent State & Memory</h2>
+                <header class="flex items-center space-x-2 p-3 bg-slate-700 rounded-lg mb-4">
+                    <div id="status-indicator" class="bg-red-500"></div>
+                    <span id="status-text" class="text-sm font-medium">State Unsaved...</span>
+                    <button onclick="simulateSave()" class="ml-auto px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-sm transition">Save State</button>
+                </header>
+                <h3 class="text-lg font-medium mb-2">Memory Log</h3>
+                <div class="log-container h-48 overflow-y-auto bg-slate-900 p-3 rounded-lg">
+                    <ul id="memory-log" class="text-xs space-y-1">
+                        <li class="text-slate-500">[System Boot] Initializing Persistent State Check...</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Part 6: API Log and Control -->
+            <div class="card p-4">
+                <h2 class="text-2xl font-semibold mb-3 text-blue-400">6. Unified API Log</h2>
+                <h3 class="text-lg font-medium mb-2">System Activity</h3>
+                <div class="log-container h-64 overflow-y-auto bg-slate-900 p-3 rounded-lg">
+                    <ul id="api-log" class="text-xs space-y-1">
+                        <!-- API Log Entries will appear here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="fixed inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50 p-4 hidden">
+        <!-- Replaced Lottie with CSS Spinner -->
+        <div class="css-spinner w-12 h-12 mb-4"></div>
+        <p class="text-xl font-mono text-purple-400 text-center">Processing with SPED Cortex...</p>
+        <p class="text-sm text-gray-400 mt-2 text-center">Hierarchical coordination in progress. Stand by.</p>
+    </div>
+
+    <script>
+        // --- Core Simulation Constants ---
+        const REFRESH_RATE = 1000 / 60;
+        const FORCE_STRENGTH = 0.05;
+        const REPULSION = -3000;
+        const CENTER_GRAVITY = 0.005;
+        const LINK_STRENGTH = 0.1;
+        const DRAG_DAMPING = 0.8;
+        const VELOCITY_DAMPING = 0.99;
+        
+        // --- Local Storage Keys ---
+        const LS_KEY_NODES = 'esn_csc_nodes';
+        const LS_KEY_LINKS = 'esn_csc_links';
+        const LS_KEY_PIPELINE = 'esn_pipeline_data';
+        // API Key modal and keys have been removed to use the environment-provided API key.
+
+        // --- SPED Cortex Configuration ---
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+        // internalApiKey is set to an empty string to use the environment-provided key.
+        const internalApiKey = ""; 
+        
+        let cortexStats = {
+            totalQueries: 0,
+            totalInstances: 111,
+            avgLatency: 0,
+            totalCost: 0,
+            layerActivations: {
+                prime: 0,
+                strategic: 0,
+                tactical: 0
+            }
+        };
+        let latestSynthesisText = 'Initializing SPED Cortex coordination...';
+        let cortexInstances = {
+            prime: null,
+            strategic: [],
+            tactical: []
+        };
+        
+        // --- Shared Data Structure for CSC (Part 1) ---
+        const canvas = document.getElementById('csc-canvas');
+        const ctx = canvas.getContext('2d');
+        const hoverInfo = document.getElementById('hover-info');
+        let width, height;
+        let nodes, links, simulationRunning = false;
+        let dragNode = null;
+        
+        // Define initial, default graph structure
+        const initialNodes = [
+            { id: 'sunlight', label: 'sunlight:001', type: 'concept', color: '#fcd34d', radius: 15, x: 0, y: 0, vx: 0, vy: 0 },
+            { id: 'water_temp', label: 'water_temp:001', type: 'attribute', color: '#fb923c', radius: 10, x: 0, y: 0, vx: 0, vy: 0 },
+            { id: 'algae_bloom', label: 'algae_bloom:002', type: 'event', color: '#10b981', radius: 10, x: 0, y: 0, vx: 0, vy: 0 },
+            { id: 'lake_ph', label: 'lake_ph:001', type: 'attribute', color: '#60a5fa', radius: 10, x: 0, y: 0, vx: 0, vy: 0 },
+            { id: 'fish_kill', label: 'fish_kill:001', type: 'event', color: '#ef4444', radius: 15, x: 0, y: 0, vx: 0, vy: 0 },
+        ];
+        
+        // CRITICAL CHANGE FOR FAILURE SIMULATION:
+        // Causal Cycle with Equal Strength (0.50), preventing the Least Certainty Heuristic from resolving the conflict.
+        const initialLinks = [
+            // causes(sunlight, water_temp, 0.50)
+            { source: 'sunlight', target: 'water_temp', type: 'causes', strength: 0.50, color: '#f97316' }, 
+            // causes(water_temp, sunlight, 0.50) - Cycle link with equal strength
+            { source: 'water_temp', target: 'sunlight', type: 'causes', strength: 0.50, color: '#ef4444' }, 
+            
+            // Other links
+            { source: 'water_temp', target: 'algae_bloom', type: 'causes', strength: 0.70, color: '#f97316' },
+            { source: 'algae_bloom', target: 'fish_kill', type: 'precedes', strength: null, color: '#10b981' },
+            { source: 'water_temp', target: 'lake_ph', type: 'related_to', strength: null, color: '#64748b' },
+        ];
+        // Raw, initial data with nested status and a missing risk value (null)
+        const rawListData = [
+            { id: 101, email: 'user1@corp.com', score: 85, risk_raw: 0.9, status: ['new', 'verified'] },
+            { id: 102, email: 'user2@spam.net', score: 30, risk_raw: null, status: ['pending'] },
+            { id: 103, email: 'user3@org.com', score: 95, risk_raw: 0.1, status: ['active', 'paid'] },
+            { id: 104, email: 'user4@invalid.co', score: 60, risk_raw: 0.5, status: ['verified'] }
+        ];
+        let listData = JSON.parse(JSON.stringify(rawListData)); // Use a mutable copy
+        let pipelineTitle = document.getElementById('pipeline-title');
+        let currentStep = 0;
+        let changesPending = false;
+
+        // --- Utility Functions ---
+        function addLogEntry(message, type = 'info', component = 'API') {
+            const apiLog = document.getElementById('api-log');
+            if (!apiLog) return;
+            const li = document.createElement('li');
+            li.className = 'text-xs';
+            let color = 'text-slate-400';
+            if (type === 'success') color = 'text-green-400';
+            if (type === 'error') color = 'text-red-400';
+            if (type === 'warning') color = 'text-yellow-400';
+            if (type === 'system') color = 'text-blue-400';
+            if (type === 'cortex') color = 'text-purple-400';
+            const timestamp = new Date().toLocaleTimeString();
+            li.innerHTML = `<span class="text-slate-500">[${timestamp}] [${component}]</span> <span class="${color}">${message}</span>`;
+            apiLog.prepend(li); // Prepend to show latest first
+            // Cap log size for performance
+            while (apiLog.children.length > 50) {
+                apiLog.removeChild(apiLog.lastChild);
+            }
+        }
+        function showNotification(message, type = 'info') {
+            // Create a notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-xl text-white shadow-xl transition-all duration-300 z-50`;
+            
+            if (type === 'success') {
+                notification.classList.add('bg-green-600');
+            } else if (type === 'error') {
+                notification.classList.add('bg-red-600');
+            } else if (type === 'info') {
+                notification.classList.add('bg-blue-600');
+            } else { // 'warning' or default
+                notification.classList.add('bg-yellow-600');
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 4000);
+        }
+        function showLoading() {
+            const modal = document.getElementById('loading-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+        function hideLoading() {
+            const modal = document.getElementById('loading-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+        // --- Tab Functions ---
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // --- SPED Cortex Functions (GROUNDED) ---
+        
+        /**
+         * Initialize SPED Cortex instances
+         */
+        function initializeSPEDCortex() {
+            // Create Prime instance
+            cortexInstances.prime = {
+                id: 'PRIME-001',
+                role: 'orchestrator',
+                model: 'gemini-2.5-flash-preview-09-2025', // Using Gemini
+                status: 'idle',
+                queries: 0,
+                avgLatency: 0
+            };
+            
+            // Create Strategic layer (10 instances)
+            for (let i = 0; i < 10; i++) {
+                cortexInstances.strategic.push({
+                    id: `STR-${i.toString().padStart(3, '0')}`,
+                    role: 'complex_reasoning',
+                    model: 'gemini-2.5-flash-preview-09-2025', // Using Gemini
+                    status: 'idle',
+                    queries: 0,
+                    avgLatency: 0
+                });
+            }
+            
+            // Create Tactical layer (100 instances)
+            for (let i = 0; i < 100; i++) {
+                cortexInstances.tactical.push({
+                    id: `TAC-${i.toString().padStart(3, '0')}`,
+                    role: 'pattern_matching',
+                    model: 'gemini-2.5-flash-preview-09-2025', // Using Gemini
+                    status: 'idle',
+                    queries: 0,
+                    avgLatency: 0
+                });
+            }
+            
+            // Render instances in UI
+            renderSPEDInstances();
+            
+            addLogEntry('SPED Cortex initialized with 111 instances (1 Prime, 10 Strategic, 100 Tactical)', 'cortex', 'Cortex');
+        }
+        
+        /**
+         * Render SPED instances in the UI
+         */
+        function renderSPEDInstances() {
+            // Render Prime instance
+            const primeInstance = document.getElementById('prime-instance');
+            if (primeInstance) {
+                document.getElementById('prime-instance-status').textContent = cortexInstances.prime.status;
+                document.getElementById('prime-instance-queries').textContent = cortexInstances.prime.queries;
+            }
+            
+            // Render Strategic instances
+            const strategicContainer = document.getElementById('strategic-instances');
+            if (strategicContainer) {
+                strategicContainer.innerHTML = '';
+                cortexInstances.strategic.forEach(instance => {
+                    const div = document.createElement('div');
+                    div.className = `sped-instance strategic ${instance.status === 'active' ? 'active' : ''}`;
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-xs">${instance.id}</span>
+                            <span class="text-xs text-gray-400">${instance.queries} queries</span>
+                        </div>
+                        <div class="text-xs text-gray-400">Status: ${instance.status}</div>
+                    `;
+                    strategicContainer.appendChild(div);
+                });
+            }
+            
+            // Render sample of Tactical instances (show only first 16)
+            const tacticalContainer = document.getElementById('tactical-instances');
+            if (tacticalContainer) {
+                tacticalContainer.innerHTML = '';
+                cortexInstances.tactical.slice(0, 16).forEach(instance => {
+                    const div = document.createElement('div');
+                    div.className = `sped-instance tactical ${instance.status === 'active' ? 'active' : ''}`;
+                    div.innerHTML = `
+                        <div class="text-xs font-bold">${instance.id}</div>
+                        <div class="text-xs text-gray-400">${instance.status}</div>
+                    `;
+                    tacticalContainer.appendChild(div);
+                });
+            }
+        }
+        
+        /**
+         * Process a query through SPED Cortex
+         */
+        async function processCortexQuery() {
+            const query = document.getElementById('cortex-query').value;
+            if (!query.trim()) {
+                showNotification('Please enter a query', 'warning');
+                return;
+            }
+            
+            // API Key check removed - using environment key.
+            
+            const output = document.getElementById('cortex-output');
+            output.innerHTML = '<div class="text-yellow-400 animate-pulse"> 🧠  SPED Cortex processing...</div>';
+            
+            showLoading();
+            
+            try {
+                const startTime = Date.now();
+                cortexStats.totalQueries++;
+                
+                // Phase 1: Prime decomposes the problem
+                addLogEntry('Phase 1: Prime decomposition', 'cortex', 'Cortex');
+                const decomposition = await primeDecompose(query);
+                
+                // Phase 2: Route to appropriate layers
+                addLogEntry('Phase 2: Task routing', 'cortex', 'Cortex');
+                const results = await routeAndSolve(decomposition);
+                
+                // Phase 3: Prime synthesizes
+                addLogEntry('Phase 3: Prime synthesis', 'cortex', 'Cortex');
+                const synthesis = await primeSynthesize(results, query);
+                
+                // Update stats
+                const totalLatency = Date.now() - startTime;
+                cortexStats.avgLatency = (cortexStats.avgLatency * (cortexStats.totalQueries - 1) + totalLatency) / cortexStats.totalQueries;
+                
+                // Update UI
+                // Use marked.parse for rich Markdown output
+                output.innerHTML = `
+                    <div class="prose-output text-white mb-2">${marked.parse(synthesis)}</div>
+                    <div class="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-700">
+                        <div>Latency: ${totalLatency}ms</div>
+                        <div>Instances used: ${results.length}</div>
+                        <div>Sub-tasks: ${decomposition.subTasks.length}</div>
+                    </div>
+                `;
+                
+                // Update stats display
+                updateCortexStats();
+                
+                // Update instances display
+                renderSPEDInstances();
+                
+                addLogEntry(`Query processed in ${totalLatency}ms using ${results.length} instances`, 'success', 'Cortex');
+                
+            } catch (error) {
+                console.error('SPED Cortex error:', error);
+                output.innerHTML = `<div class="text-red-400"> ❌  Error: ${error.message}</div>`;
+                addLogEntry(`Error processing query: ${error.message}`, 'error', 'Cortex');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        /**
+         * Prime decomposes the problem
+         */
+        async function primeDecompose(query) {
+            cortexStats.layerActivations.prime++;
+            cortexInstances.prime.status = 'active';
+            cortexInstances.prime.queries++;
+            
+            const decomposePrompt = `You are SPED-Prime, a meta-orchestrator for the ESN system. Break this query into 3-5 sub-tasks, rating each by complexity (0.0-1.0).
+Query: ${query}
+Return ONLY the JSON object.`;
+            
+            // Define the JSON schema for the response
+            const decomposeGenConfig = {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        "subTasks": {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "id": { type: "NUMBER" },
+                                    "description": { type: "STRING" },
+                                    "complexity": { type: "NUMBER" }
+                                },
+                                required: ["id", "description", "complexity"]
+                            }
+                        }
+                    },
+                    required: ["subTasks"]
+                }
+            };
+            
+            try {
+                // Call LLM with JSON mode
+                const resultJson = await callLLM('gemini', decomposePrompt, decomposeGenConfig, false);
+                cortexInstances.prime.status = 'idle';
+                // resultJson is already a parsed JSON object
+                return resultJson;
+            } catch (error) {
+                console.error("Decomposition failed:", error);
+                // Fallback: treat as single task
+                cortexInstances.prime.status = 'idle';
+                return {
+                    subTasks: [{
+                        id: 1,
+                        description: query,
+                        complexity: 0.5
+                    }]
+                };
+            }
+        }
+        
+        /**
+         * Route tasks to appropriate layers and solve them
+         */
+        async function routeAndSolve(decomposition) {
+            const results = [];
+            
+            for (const task of decomposition.subTasks) {
+                // Determine which layer
+                const layer = selectLayer(task.complexity);
+                addLogEntry(`Task ${task.id} (complexity: ${task.complexity.toFixed(2)}) → ${layer} layer`, 'cortex', 'Cortex');
+                
+                // Get best available instance
+                const instance = await getBestInstance(layer, task);
+                
+                // Solve with concurrency control
+                // Pass false for useGrounding - sub-tasks are internal
+                const result = await throttledSolve(instance, task);
+                results.push(result);
+            }
+            
+            return results;
+        }
+        
+        /**
+         * Select layer based on complexity
+         */
+        function selectLayer(complexity) {
+            if (complexity > 0.6) {
+                return 'strategic';
+            }
+            return 'tactical';
+        }
+        
+        /**
+         * Get best available instance from a layer
+         */
+        async function getBestInstance(layerName, task) {
+            const layer = layerName === 'strategic' ? cortexInstances.strategic : cortexInstances.tactical;
+            
+            // Sparse activation for tactical layer
+            let candidatePool = layer;
+            if (layerName === 'tactical') {
+                const activationCount = Math.ceil(layer.length * 0.1); // 10% activation
+                candidatePool = layer.slice(0, activationCount);
+            }
+            
+            // Find idle instance
+            let bestInstance = candidatePool.find(inst => inst.status === 'idle');
+            
+            // If all busy, wait for one to free up
+            if (!bestInstance) {
+                addLogEntry(`No idle instance in ${layerName} layer. Waiting...`, 'cortex', 'Cortex');
+                await new Promise(resolve => setTimeout(resolve, 100));
+                return getBestInstance(layerName, task);
+            }
+            
+            return bestInstance;
+        }
+        
+        /**
+         * Solve a task with an instance
+         */
+        async function throttledSolve(instance, task) {
+            instance.status = 'active';
+            instance.queries++;
+            cortexStats.layerActivations[instance.role === 'complex_reasoning' ? 'strategic' : 'tactical']++;
+            renderSPEDInstances(); // Update UI to show active state
+            
+            try {
+                const startTime = Date.now();
+                // Call LLM without grounding for internal sub-tasks
+                const result = await callLLM(instance.model, task.description, null, false);
+                const latency = Date.now() - startTime;
+                
+                // Update instance stats
+                instance.avgLatency = (instance.avgLatency * (instance.queries - 1) + latency) / instance.queries;
+                
+                return {
+                    instanceId: instance.id,
+                    result: result,
+                    latency: latency
+                };
+            } finally {
+                instance.status = 'idle';
+                renderSPEDInstances(); // Update UI to show idle state
+            }
+        }
+        
+        /**
+         * Prime synthesizes results
+         */
+        async function primeSynthesize(results, originalQuery) {
+            cortexInstances.prime.status = 'active';
+            renderSPEDInstances();
+            
+            const synthesisPrompt = `You are SPED-Prime. Synthesize these sub-task results into a final, comprehensive, and well-formatted Markdown answer.
+Original Query: ${originalQuery}
+Sub-task Results:
+ ${results.map((r, i) => `${i+1}. [from ${r.instanceId}]: ${r.result.slice(0, 200)}...`).join('\n')}
+Provide a coherent, comprehensive answer:`;
+            
+            // Use grounding for synthesis to get the best possible answer
+            const synthesis = await callLLM('gemini', synthesisPrompt, null, true);
+            
+            cortexInstances.prime.status = 'idle';
+            renderSPEDInstances();
+            return synthesis;
+        }
+        
+        /**
+         * Call LLM API with exponential backoff and dynamic payload
+         * @param {string} model - (Ignored) The simulated model name.
+         * @param {string} prompt - The text prompt.
+         * @param {object | null} generationConfig - Optional GenerationConfig, e.g., for JSON mode.
+         * @param {boolean} useGrounding - Whether to enable Google Search grounding.
+         * @returns {Promise<string|object>} - The text response or parsed JSON object.
+         */
+        async function callLLM(model, prompt, generationConfig = null, useGrounding = false) {
+            const apiUrl = `${API_URL}?key=${internalApiKey}`;
+            let payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+            };
+            
+            if (generationConfig) {
+                payload.generationConfig = generationConfig;
+            }
+            
+            if (useGrounding) {
+                payload.tools = [{ "google_search": {} }];
+            }
+
+            let retries = 0;
+            const maxRetries = 5;
+            const baseDelay = 1000; // 1 second
+
+            while (retries < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        // Handle rate limiting (429) and other errors
+                        if (response.status === 429) {
+                            throw new Error('Rate limited');
+                        }
+                        throw new Error(`API call failed with status ${response.status}: ${await response.text()}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (!data.candidates || !data.candidates[0].content || !data.candidates[0].content.parts[0]) {
+                        throw new Error('Invalid API response structure');
+                    }
+
+                    const textResponse = data.candidates[0].content.parts[0].text;
+
+                    // If JSON mode was requested, parse and return the object
+                    if (generationConfig && generationConfig.responseMimeType === "application/json") {
+                        try {
+                            return JSON.parse(textResponse);
+                        } catch (e) {
+                            throw new Error(`Failed to parse JSON response: ${e.message}`);
+                        }
+                    }
+                    
+                    // Otherwise, return plain text
+                    return textResponse;
+
+                } catch (error) {
+                    console.warn(`API call failed (Attempt ${retries + 1}/${maxRetries}): ${error.message}`);
+                    retries++;
+                    if (retries >= maxRetries) {
+                        throw new Error(`API call failed after ${maxRetries} attempts: ${error.message}`);
+                    }
+                    // Exponential backoff with jitter
+                    const delay = baseDelay * Math.pow(2, retries - 1) + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        /**
+         * Update SPED Cortex stats display
+         */
+        function updateCortexStats() {
+            document.getElementById('cortex-total-queries').textContent = cortexStats.totalQueries;
+            document.getElementById('cortex-avg-latency').textContent = `${Math.round(cortexStats.avgLatency)}ms`;
+            document.getElementById('cortex-api-calls').textContent = cortexStats.totalQueries; // Simple 1:1 mapping for demo
+            document.getElementById('cortex-cost').textContent = `$${(cortexStats.totalQueries * 0.0001).toFixed(4)}`; // Adjusted cost
+            
+            document.getElementById('prime-status').textContent = cortexInstances.prime.status === 'active' ? '1 / 1' : '0 / 1';
+            document.getElementById('strategic-status').textContent = `${cortexInstances.strategic.filter(i => i.status === 'active').length} / 10`;
+            document.getElementById('tactical-status').textContent = `${cortexInstances.tactical.filter(i => i.status === 'active').length} / 100`;
+        }
+        
+        /**
+         * Send a chat message to SPED Cortex
+         */
+        async function sendCortexChatMessage() {
+            const input = document.getElementById('cortex-chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // API Key check removed
+            
+            input.value = '';
+            
+            const chatArea = document.getElementById('cortex-chat-area');
+            
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'flex justify-end mb-4';
+            userMsg.innerHTML = `
+                <div class="chat-bubble-user max-w-lg lg:max-w-2xl xl:max-w-4xl p-4 shadow-xl text-sm md:text-base">
+                    <p class="font-bold mb-1 text-gray-100">You</p>
+                    <div class="prose-output text-white">${message}</div>
+                </div>
+            `;
+            chatArea.appendChild(userMsg);
+            
+            // Add AI response placeholder
+            const aiMsg = document.createElement('div');
+            aiMsg.id = `msg-${Date.now()}`; // Give it a unique ID
+            aiMsg.className = 'flex justify-start mb-4';
+            aiMsg.innerHTML = `
+                <div class="chat-bubble-ai max-w-lg lg:max-w-2xl xl:max-w-4xl p-4 shadow-xl text-sm md:text-base">
+                    <p class="font-bold mb-1 text-purple-400">SPED Cortex</p>
+                    <div class="text-yellow-400 animate-pulse">Thinking...</div>
+                </div>
+            `;
+            chatArea.appendChild(aiMsg);
+            
+            chatArea.scrollTop = chatArea.scrollHeight;
+            
+            try {
+                // Call LLM with grounding enabled for chat
+                const response = await callLLM('gemini', message, null, true);
+                
+                // Update AI message
+                const aiMsgContent = aiMsg.querySelector('.text-yellow-400');
+                if (aiMsgContent) {
+                    // Use marked.parse for full Markdown rendering
+                    aiMsgContent.parentElement.innerHTML += `<div class="prose-output">${marked.parse(response)}</div>`;
+                    aiMsgContent.remove();
+                }
+                
+                addLogEntry('Chat message processed', 'cortex', 'Cortex');
+            } catch (error) {
+                const aiMsgContent = aiMsg.querySelector('.text-yellow-400');
+                 if (aiMsgContent) {
+                    aiMsgContent.outerHTML = `<div class="text-red-400">Error: ${error.message}</div>`;
+                 }
+                addLogEntry(`Chat error: ${error.message}`, 'error', 'Cortex');
+            }
+            
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+        
+        // --- Part 1: Causal Schema Core (CSC) Logic ---
+        function setupCanvas() {
+            const container = canvas.parentElement;
+            width = container.clientWidth;
+            height = container.clientHeight;
+            if (width === 0 || height === 0) { // Handle hidden canvas on init
+                const rect = container.getBoundingClientRect();
+                width = rect.width;
+                height = rect.height;
+            }
+            canvas.width = width;
+            canvas.height = height;
+
+            // 1. Load Nodes and Links from Local Storage or use defaults
+            let savedNodes = localStorage.getItem(LS_KEY_NODES);
+            let savedLinks = localStorage.getItem(LS_KEY_LINKS);
+            if (savedNodes && savedLinks) {
+                try {
+                    nodes = JSON.parse(savedNodes);
+                    
+                    // Re-associate link targets with node objects
+                    const linkPointers = JSON.parse(savedLinks);
+                    links = linkPointers.map(link => {
+                        const sourceNode = nodes.find(n => n.id === link.source);
+                        const targetNode = nodes.find(n => n.id === link.target);
+                        if (!sourceNode || !targetNode) {
+                            throw new Error("Orphan link found");
+                        }
+                        return { ...link, source: sourceNode, target: targetNode };
+                    });
+                    addLogEntry('CSC State loaded from Persistent Memory.', 'success', 'CSC');
+                } catch (e) {
+                    addLogEntry(`Error parsing saved CSC state: ${e.message}. Using default graph.`, 'error', 'CSC');
+                    initializeDefaultGraph();
+                }
+            } else {
+                initializeDefaultGraph();
+            }
+            // Reposition nodes that might have default 0,0 coordinates after loading
+            nodes.forEach(n => {
+                if (!n.x || n.x === 0) n.x = width / 2 + (Math.random() - 0.5) * 100;
+                if (!n.y || n.y === 0) n.y = height / 2 + (Math.random() - 0.5) * 100;
+                if (n.x > width) n.x = width - n.radius;
+                if (n.y > height) n.y = height - n.radius;
+            });
+            startSimulation();
+        }
+        function initializeDefaultGraph() {
+            nodes = JSON.parse(JSON.stringify(initialNodes));
+            
+            // Assign random initial positions
+            nodes.forEach(n => {
+                n.x = width / 2 + (Math.random() - 0.5) * 100;
+                n.y = height / 2 + (Math.random() - 0.5) * 100;
+                n.vx = 0;
+                n.vy = 0;
+            });
+            
+            const linksCopy = JSON.parse(JSON.stringify(initialLinks));
+            links = linksCopy.map(link => {
+                const sourceNode = nodes.find(n => n.id === link.source);
+                const targetNode = nodes.find(n => n.id === link.target);
+                return { ...link, source: sourceNode, target: targetNode };
+            });
+            addLogEntry('CSC Datalog Graph Initialized (Default State - Equal Certainty Cycle Present).', 'system', 'CSC');
+        }
+        function calculateForces() {
+            if (!nodes || !links || !width || !height) return;
+            const center = { x: width / 2, y: height / 2 };
+            
+            nodes.forEach(node => {
+                let fx = 0;
+                let fy = 0;
+                // 1. Repulsion Force
+                nodes.forEach(other => {
+                    if (node !== other) {
+                        const dx = node.x - other.x;
+                        const dy = node.y - other.y;
+                        let dist2 = dx * dx + dy * dy;
+                        if (dist2 < 100) dist2 = 100; // Min distance
+                        const dist = Math.sqrt(dist2);
+                        const force = REPULSION / dist2;
+                        fx += force * (dx / dist);
+                        fy += force * (dy / dist);
+                    }
+                });
+                // 2. Link Force (Spring-like attraction)
+                links.forEach(link => {
+                    const source = link.source;
+                    const target = link.target;
+                    if (!source || !target) return; // Skip if nodes are missing
+                    
+                    const isSource = (source.id === node.id);
+                    const isTarget = (target.id === node.id);
+                    
+                    if (isSource || isTarget) {
+                        const other = isSource ? target : source;
+                        const dx = other.x - node.x;
+                        const dy = other.y - node.y;
+                        const distance = 120; // Preferred link length
+                        const currentDistance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+                        const displacement = currentDistance - distance;
+                        const force = LINK_STRENGTH * displacement;
+                        fx += force * (dx / currentDistance);
+                        fy += force * (dy / currentDistance);
+                    }
+                });
+                // 3. Center Gravity
+                const dx_center = center.x - node.x;
+                const dy_center = center.y - node.y;
+                fx += CENTER_GRAVITY * dx_center;
+                fy += CENTER_GRAVITY * dy_center;
+                
+                // Apply forces and damping
+                if (node !== dragNode) {
+                    node.vx += fx * FORCE_STRENGTH;
+                    node.vy += fy * FORCE_STRENGTH;
+                    node.vx *= VELOCITY_DAMPING;
+                    node.vy *= VELOCITY_DAMPING;
+                } else {
+                    node.vx = 0;
+                    node.vy = 0;
+                }
+            });
+            // Update positions
+            nodes.forEach(node => {
+                if (node !== dragNode) {
+                    node.x += node.vx;
+                    node.y += node.vy;
+                }
+                // Boundary containment
+                node.x = Math.max(node.radius, Math.min(width - node.radius, node.x));
+                node.y = Math.max(node.radius, Math.min(height - node.radius, node.y));
+            });
+        }
+        function drawGraph() {
+            if (!ctx || !nodes || !links) return;
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw Links
+            ctx.lineWidth = 2;
+            links.forEach(link => {
+                if (!link.source || !link.target) return; // Safety check
+                ctx.strokeStyle = link.color;
+                ctx.beginPath();
+                ctx.moveTo(link.source.x, link.source.y);
+                ctx.lineTo(link.target.x, link.target.y);
+                ctx.stroke();
+                
+                // Draw Link Label (Predicate Name)
+                const midX = (link.source.x + link.target.x) / 2;
+                const midY = (link.source.y + link.target.y) / 2;
+                
+                ctx.fillStyle = link.color;
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                
+                let label = link.type;
+                if (link.strength !== null) {
+                    label += ` (${link.strength.toFixed(2)})`;
+                }
+                ctx.fillText(label, midX, midY - 5);
+            });
+            // Draw Nodes
+            nodes.forEach(node => {
+                // Draw circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+                ctx.fillStyle = node.color;
+                ctx.fill();
+                
+                // Draw white border for visibility
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                // Draw label (concept ID)
+                ctx.fillStyle = '#e2e8f0'; // Slate-200
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(node.label, node.x, node.y + node.radius + 10);
+                
+                // Draw Datalog type (small text above node)
+                ctx.fillStyle = '#94a3b8'; // Slate-400
+                ctx.font = '8px Inter';
+                ctx.fillText(`is_a(${node.type})`, node.x, node.y - node.radius - 5);
+            });
+        }
+        function animate() {
+            if (simulationRunning) {
+                calculateForces();
+                drawGraph();
+                requestAnimationFrame(animate);
+            }
+        }
+        function startSimulation() {
+            if (!simulationRunning) {
+                simulationRunning = true;
+                animate();
+            }
+        }
+        // Interaction Handlers
+        function getClosestNode(x, y) {
+            let closest = null;
+            let minDist = Infinity;
+            nodes.forEach(node => {
+                const dx = node.x - x;
+                const dy = node.y - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < node.radius + 5 && dist < minDist) {
+                    minDist = dist;
+                    closest = node;
+                }
+            });
+            return closest;
+        }
+        function getClosestLink(x, y) {
+            for (const link of links) {
+                if (!link.source || !link.target) continue;
+                const dx = link.target.x - link.source.x;
+                const dy = link.target.y - link.source.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const t = ((x - link.source.x) * dx + (y - link.source.y) * dy) / (length * length || 1);
+                let closestX, closestY;
+                if (t < 0) {
+                    closestX = link.source.x;
+                    closestY = link.source.y;
+                } else if (t > 1) {
+                    closestX = link.target.x;
+                    closestY = link.target.y;
+                } else {
+                    closestX = link.source.x + t * dx;
+                    closestY = link.source.y + t * dy;
+                }
+                const dist = Math.sqrt(Math.pow(x - closestX, 2) + Math.pow(y - closestY, 2));
+                if (dist < 10) { 
+                    return link;
+                }
+            }
+            return null;
+        }
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            dragNode = getClosestNode(mouseX, mouseY);
+            if (dragNode) {
+                dragNode.isDragging = true;
+            }
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            if (dragNode && dragNode.isDragging) {
+                dragNode.x = mouseX;
+                dragNode.y = mouseY;
+            } else {
+                const hoveredNode = getClosestNode(mouseX, mouseY);
+                const hoveredLink = getClosestLink(mouseX, mouseY);
+                
+                if (hoveredNode) {
+                    hoverInfo.innerHTML = `<span class="text-cyan-400 font-bold">NODE:</span> <code class="text-white">${hoveredNode.label}</code> | <span class="text-indigo-400 font-bold">FACT:</span> <code class="text-white">is_a(${hoveredNode.label}, ${hoveredNode.type})</code>`;
+                } else if (hoveredLink) {
+                    const strength = hoveredLink.strength !== null ? `, ${hoveredLink.strength.toFixed(2)}` : '';
+                    hoverInfo.innerHTML = `<span class="text-cyan-400 font-bold">LINK:</span> ${hoveredLink.type} | <span class="text-indigo-400 font-bold">FACT:</span> <code class="text-white">${hoveredLink.type}(${hoveredLink.source.label}, ${hoveredLink.target.label}${strength})</code>`;
+                } else {
+                    hoverInfo.textContent = 'Hover over a node or link.';
+                }
+            }
+        });
+        canvas.addEventListener('mouseup', () => {
+            if (dragNode) {
+                dragNode.isDragging = false;
+                dragNode = null;
+                // Since the graph structure changed (positions moved), queue a save prompt
+                checkState(true); 
+            }
+        });
+        // Search functionality
+        function searchNode(query) {
+            const q = query.toLowerCase();
+            const defaultColors = initialNodes.reduce((acc, n) => {
+                acc[n.id] = n.color;
+                return acc;
+            }, {});
+
+            nodes.forEach(node => {
+                 if (q && node.label.toLowerCase().includes(q)) {
+                    node.color = '#ffedd5'; // Highlight color
+                } else {
+                    node.color = defaultColors[node.id] || '#64748b'; // Default
+                }
+            });
+        }
+        function resetView() {
+             // 1. Clear Local Storage
+             localStorage.removeItem(LS_KEY_NODES);
+             localStorage.removeItem(LS_KEY_LINKS);
+             localStorage.removeItem(LS_KEY_PIPELINE);
+             
+             // 2. Re-initialize CSC
+             initializeDefaultGraph(); // Use this instead of setupCanvas to force defaults
+             addLogEntry('CSC view reset to initial Datalog schema and local storage cleared.', 'system', 'CSC');
+             
+             // 3. Reset pipeline to raw data state
+             renderPipelineTable(true);
+             checkState(false);
+        }
+        // --- Part 2: Persistent State & Memory System Logic ---
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const memoryLog = document.getElementById('memory-log');
+        function checkState(pending = false) {
+            if (pending) {
+                changesPending = true;
+            }
+            if (changesPending) {
+                statusIndicator.style.backgroundColor = '#fbbf24'; // Yellow
+                statusText.textContent = 'Unsaved Changes Pending...';
+            } else {
+                statusIndicator.style.backgroundColor = '#10b981'; // Green
+                statusText.textContent = 'State Saved Successfully.';
+            }
+        }
+        function simulateSave() {
+            // 1. Serialize Graph Data (Nodes + Links with ID references)
+            const serializableLinks = links.map(link => ({
+                ...link,
+                source: link.source.id, // Replace object pointer with ID
+                target: link.target.id
+            }));
+            
+            // Nodes are serialized as is (they hold position data)
+            localStorage.setItem(LS_KEY_NODES, JSON.stringify(nodes));
+            localStorage.setItem(LS_KEY_LINKS, JSON.stringify(serializableLinks));
+            
+            // 2. Serialize Pipeline Data
+            localStorage.setItem(LS_KEY_PIPELINE, JSON.stringify({ data: listData, step: currentStep, title: pipelineTitle.textContent }));
+            changesPending = false;
+            const timestamp = new Date().toLocaleTimeString();
+            const li = document.createElement('li');
+            li.className = 'text-green-400 text-xs';
+            li.textContent = `[${timestamp}] State snapshot saved (Datalog Facts: ${links.length + nodes.length}).`;
+            memoryLog.prepend(li);
+            addLogEntry('Persistent State saved successfully.', 'success', 'Memory');
+            checkState(false);
+        }
+        // --- Part 3: Schema Projection Module (SPM) Logic ---
+        const spmParticle = document.getElementById('spm-particle');
+        const lfeBox = document.getElementById('lfe-box');
+        const cscBoxFlow = document.getElementById('csc-box-flow');
+        function triggerSPM() {
+            addLogEntry('Initiating Schema Projection (Vector -> Symbol).', 'system', 'SPM');
+            const lfeRect = lfeBox.getBoundingClientRect();
+            const cscRect = cscBoxFlow.getBoundingClientRect();
+            const containerRect = spmParticle.parentElement.getBoundingClientRect();
+            
+            const startX = lfeRect.right - containerRect.left;
+            const startY = lfeRect.top + lfeRect.height / 2 - containerRect.top;
+            const endX = cscRect.left - containerRect.left;
+            const endY = cscRect.top + cscRect.height / 2 - containerRect.top;
+
+            // Ensure particle is positioned correctly before transition
+            spmParticle.style.transition = 'none';
+            spmParticle.style.opacity = '1';
+            spmParticle.style.left = `${startX}px`;
+            spmParticle.style.top = `${startY - spmParticle.offsetHeight / 2}px`;
+            
+            // Force browser repaint
+            spmParticle.offsetHeight; 
+            
+            // Start animation (LFE -> CSC)
+            spmParticle.style.transition = 'all 0.5s ease-in-out';
+            setTimeout(() => {
+                spmParticle.style.left = `${endX - spmParticle.offsetWidth}px`;
+                spmParticle.style.top = `${endY - spmParticle.offsetHeight / 2}px`;
+                
+                // End animation and reverse (CSC -> LFE)
+                setTimeout(() => {
+                    addLogEntry('Projection complete. Datalog reasoning initiated.', 'success', 'SPM');
+                    spmParticle.style.opacity = '0';
+                    // Reset position after fade out
+                    setTimeout(() => {
+                        spmParticle.style.transition = 'none';
+                        spmParticle.style.left = `${startX}px`;
+                        spmParticle.style.top = `${startY - spmParticle.offsetHeight / 2}px`;
+                    }, 500);
+                }, 500); // Time for the travel transition
+            }, 50);
+        }
+        // --- Part 4: Dynamic Self-Correction Loop Logic ---
+        const pulseAnimation = document.getElementById('pulse-animation');
+        const pulseCircle = document.getElementById('correction-pulse');
+        const steps = ['step1', 'step2', 'step3', 'step4'];
+        function triggerCorrectionLoop() {
+            
+            const linkA = links.find(l => l.source.id === 'sunlight' && l.target.id === 'water_temp');
+            const linkB = links.find(l => l.source.id === 'water_temp' && l.target.id === 'sunlight');
+            let repairPerformed = false;
+            let failureMode = null; // New state tracker for failure
+            if (!linkB || !linkA) {
+                 addLogEntry('Datalog Integrity Check: No Causal Cycles detected. Schema is clean.', 'success', 'Critic');
+                 return;
+            }
+            addLogEntry('Self-Correction Cycle Triggered: Datalog Integrity Check running...', 'warning', 'Critic');
+            pulseCircle.style.opacity = '1';
+            pulseAnimation.beginElement();
+            
+            const highlightStep = (index) => {
+                steps.forEach(id => document.getElementById(id).setAttribute('fill', '#475569'));
+                
+                if (index < steps.length) {
+                    document.getElementById(steps[index]).setAttribute('fill', '#f0abfc');
+                    
+                    if (index === 2) { // Step 3: Critic execution
+                        addLogEntry(`Cycle Detected! Violation: false ← causes(A, B), causes(B, A).`, 'error', 'Critic');
+                        addLogEntry(`Conflicting Facts: F1=causes(sunlight, water_temp, ${linkA.strength.toFixed(2)}) vs. F2=causes(water_temp, sunlight, ${linkB.strength.toFixed(2)}).`, 'error', 'Critic');
+                        
+                        // Check for the failure condition: Equal Strength
+                        if (linkA.strength === linkB.strength) {
+                            failureMode = 'Equal Certainty Contradiction';
+                            addLogEntry('CRITICAL FAILURE: Equal Certainty Contradiction Detected.', 'error', 'Critic');
+                            addLogEntry('Heuristic violation: Cannot apply Least Certainty Heuristic to facts with equal strength (0.50).', 'error', 'Critic');
+                            addLogEntry('System stuck: Requires external human intervention or a meta-rule override.', 'error', 'Critic');
+                        } else {
+                            const victim = linkB.strength < linkA.strength ? 'F2' : 'F1';
+                            const victimStrength = Math.min(linkA.strength, linkB.strength).toFixed(2);
+                            addLogEntry(`Heuristic applied: ${victim} is least certain (Strength: ${victimStrength}).`, 'warning', 'Critic');
+                        }
+                    } else if (index === 3) { // Step 4: Modify execution
+                        if (failureMode) {
+                            // Failure path: Modification is BLOCKED
+                            addLogEntry('Modification Blocked. Integrity check failed to yield a unique correction target.', 'error', 'System');
+                        } else {
+                            // Success path: Remove the weaker link
+                            const weakLinkIndex = links.findIndex(l => 
+                                (l.strength === Math.min(linkA.strength, linkB.strength)) &&
+                                (l.source.id === 'water_temp' || l.source.id === 'sunlight')
+                            );
+                            
+                            if (weakLinkIndex !== -1) {
+                                const removedLink = links.splice(weakLinkIndex, 1)[0];
+                                addLogEntry(`Schema Repaired: Contracted fact ${removedLink.type}(${removedLink.source.label}, ${removedLink.target.label}, ${removedLink.strength.toFixed(2)}) to restore DAG.`, 'success', 'Critic');
+                                repairPerformed = true;
+                                drawGraph(); 
+                                checkState(true); 
+                            }
+                        }
+                    }
+                    setTimeout(() => {
+                        highlightStep(index + 1);
+                    }, 1000);
+                } else {
+                    pulseCircle.style.opacity = '0';
+                    if (failureMode) {
+                         addLogEntry('Correction Loop Terminated: Failure to resolve cycle. Manual intervention needed.', 'error', 'System');
+                    } else {
+                        addLogEntry(repairPerformed ? 'Datalog schema repair successful. Loop reset.' : 'Datalog schema integrity confirmed. Loop reset.', 'success', 'System');
+                    }
+                }
+            };
+            
+            highlightStep(0);
+        }
+        // --- Part 5: Linguistic Front-End (LFE) Logic ---
+        const tokenContainer = document.getElementById('token-container');
+        const lfeInput = document.getElementById('lfe-input');
+        const barHigh = document.getElementById('bar-high');
+        const barMedium = document.getElementById('bar-medium');
+        function processLFE() {
+            const text = lfeInput.value;
+            const tokens = text.split(/\s+/).filter(t => t.length > 0);
+            tokenContainer.innerHTML = '';
+            barHigh.style.width = '0%';
+            barMedium.style.width = '0%';
+            addLogEntry(`Processing query with ${tokens.length} tokens.`, 'system', 'LFE');
+            let tokenIndex = 0;
+            const processNextToken = () => {
+                if (tokenIndex < tokens.length) {
+                    const tokenSpan = document.createElement('span');
+                    tokenSpan.className = 'inline-block p-1 mr-1 transition-all duration-300';
+                    tokenSpan.textContent = tokens[tokenIndex];
+                    tokenContainer.appendChild(tokenSpan);
+                    setTimeout(() => {
+                        tokenSpan.classList.add('processed-token');
+                        
+                        const confidenceHigh = Math.min(95, 30 + (tokenIndex * 15) + Math.floor(Math.random() * 10));
+                        const confidenceMedium = Math.min(95, 20 + (tokens.length - tokenIndex) * 5 + Math.floor(Math.random() * 10));
+                        barHigh.style.width = `${confidenceHigh}%`;
+                        barMedium.style.width = `${confidenceMedium}%`;
+                        barHigh.textContent = `${confidenceHigh.toFixed(0)}% High`;
+                        barMedium.textContent = `${confidenceMedium.toFixed(0)}% Medium`;
+                        tokenIndex++;
+                        processNextToken();
+                    }, 200);
+                } else {
+                    addLogEntry('Token processing complete. Ready for Schema Projection.', 'success', 'LFE');
+                }
+            };
+            processNextToken();
+        }
+        // --- Part 7: Unified Data Preparation Pipeline Logic ---
+        function renderPipelineTable(reset = false) {
+            if (reset) {
+                listData = JSON.parse(JSON.stringify(rawListData));
+                pipelineTitle.textContent = "Raw Data List:";
+                currentStep = 0;
+            }
+            // Check local storage for persistent pipeline state
+            if (!reset && localStorage.getItem(LS_KEY_PIPELINE)) {
+                 try {
+                    const savedPipeline = JSON.parse(localStorage.getItem(LS_KEY_PIPELINE));
+                    listData = savedPipeline.data;
+                    currentStep = savedPipeline.step;
+                    pipelineTitle.textContent = savedPipeline.title;
+                    addLogEntry(`Pipeline state loaded at Step ${currentStep}.`, 'success', 'Pipeline');
+                 } catch (e) {
+                    addLogEntry('Error loading pipeline state. Starting from raw data.', 'error', 'Pipeline');
+                 }
+            }
+            const table = document.getElementById('pipeline-table');
+            
+            // Get all unique keys (headers) dynamically, including new ones from processing
+            let headers = [];
+            listData.forEach(item => {
+                Object.keys(item).forEach(key => {
+                    if (!headers.includes(key)) {
+                        headers.push(key);
+                    }
+                });
+            });
+            // Ensure core headers are first
+            const coreHeaders = ['id', 'email', 'score', 'score_scaled', 'risk_raw', 'status', 'email_status', 'trust_score'];
+            headers = coreHeaders.filter(h => headers.includes(h)).concat(headers.filter(h => !coreHeaders.includes(h)));
+            headers = headers.filter(h => h !== 'color'); // Don't show the internal color variable
+            
+            // Build Header Row
+            let headerHtml = '<thead><tr>';
+            headers.forEach(h => headerHtml += `<th class="text-xs">${h.toUpperCase().replace('_RAW', '(RAW)').replace('_SCALED', '(Scaled)').replace('_SCORE', '(Trust)')}</th>`);
+            headerHtml += '</tr></thead>';
+            // Build Body Rows
+            let bodyHtml = '<tbody>';
+            listData.forEach(item => {
+                let rowHtml = '<tr>';
+                headers.forEach(h => {
+                    let cellValue = item[h];
+                    let style = '';
+                    // Apply conditional formatting from Step 4 to scaled score
+                    if (h === 'score_scaled' && item.color) {
+                         // Uses item.color which is set in step4Software
+                         style = `background-color: ${item.color}; color: black; font-weight: 700;`;
+                    }
+                    if (cellValue === null || cellValue === undefined) cellValue = 'NULL'; // Display missing data clearly
+                    
+                    // Formatting for arrays and numbers
+                    if (Array.isArray(cellValue)) cellValue = cellValue.join(', ');
+                    if (typeof cellValue === 'number' && (h.includes('risk') || h === 'score_scaled' || h.includes('trust_score'))) cellValue = cellValue.toFixed(3);
+                    
+                    rowHtml += `<td style="${style}">${cellValue}</td>`;
+                });
+                rowHtml += '</tr>';
+                bodyHtml += rowHtml;
+            });
+            bodyHtml += '</tbody>';
+            table.innerHTML = headerHtml + bodyHtml;
+        }
+        // 1. Programming Enhancement: Flatten Nested Lists
+        function step1Programming() {
+            if (currentStep >= 1) {
+                addLogEntry('Programming step already applied. Skipping.', 'warning', 'Pipeline');
+                return;
+            }
+            
+            listData = listData.map(item => ({
+                ...item,
+                status: Array.isArray(item.status) ? item.status.join(', ') : item.status // Array.prototype.join() used as list flattening technique
+            }));
+            
+            pipelineTitle.textContent = "Step 1: Programming Enhancement (Status Flattened)";
+            currentStep = 1;
+            renderPipelineTable();
+            addLogEntry('Programming: Nested status arrays flattened to strings. Save pending.', 'success', 'Pipeline');
+            checkState(true); 
+        }
+        // 2. ML/Stats Enhancement: Imputation and Scaling
+        function step2MLStats() {
+            if (currentStep < 1) {
+                addLogEntry('Error: Must run Step 1 (Programming) first.', 'error', 'Pipeline');
+                return;
+            }
+            if (currentStep >= 2) {
+                addLogEntry('ML/Stats step already applied. Skipping.', 'warning', 'Pipeline');
+                return;
+            }
+            // A. Missing Value Imputation (Mean Imputation for 'risk_raw')
+            const riskValues = listData.map(d => d.risk_raw).filter(v => v !== null && v !== undefined);
+            const meanRisk = riskValues.length > 0 ? riskValues.reduce((a, b) => a + b, 0) / riskValues.length : 0.5; // Handle case with no valid data
+            listData = listData.map(item => ({
+                ...item,
+                risk_raw: item.risk_raw === null || item.risk_raw === undefined ? meanRisk : item.risk_raw // Impute
+            }));
+            // B. Feature Scaling (Min-Max Scaling for 'score')
+            const scores = listData.map(d => d.score);
+            const minScore = Math.min(...scores);
+            const maxScore = Math.max(...scores);
+            const range = maxScore - minScore;
+            listData = listData.map(item => ({
+                ...item,
+                score_scaled: range > 0 ? (item.score - minScore) / range : 0 // Scale: (X - min) / (max - min), handle divide by zero
+            }));
+            
+            pipelineTitle.textContent = "Step 2: ML/Stats Enhancement (Imputation & Scaling Applied)";
+            currentStep = 2;
+            renderPipelineTable();
+            addLogEntry(`ML/Stats: Missing risk imputed (${meanRisk.toFixed(3)}). Score scaled. Save pending.`, 'success', 'Pipeline');
+            checkState(true);
+        }
+        // 3. Marketing Enhancement: Email Verification/Enrichment
+        function step3Marketing() {
+            if (currentStep < 2) {
+                addLogEntry('Error: Must run Step 2 (ML/Stats) first.', 'error', 'Pipeline');
+                return;
+            }
+            if (currentStep >= 3) {
+                addLogEntry('Marketing step already applied. Skipping.', 'warning', 'Pipeline');
+                return;
+            }
+            listData = listData.map(item => {
+                const domain = item.email.split('@')[1];
+                let trust = 1.0;
+                if (domain.includes('spam.net')) {
+                    trust = 0.2; // Low trust (simulated bounced/bad data)
+                } else if (domain.includes('invalid.co')) {
+                    trust = 0.5; // Medium trust (simulated unverified)
+                }
+                
+                return {
+                    ...item,
+                    trust_score: trust, // Appended enrichment data
+                    email_status: trust < 0.3 ? 'Bounced' : 'Verified'
+                };
+            });
+            
+            pipelineTitle.textContent = "Step 3: Marketing Enhancement (Trust Score Appended)";
+            currentStep = 3;
+            renderPipelineTable();
+            addLogEntry('Marketing: Trust scores appended based on domain verification. Save pending.', 'success', 'Pipeline');
+            checkState(true);
+        }
+        // 4. Software Enhancement: Conditional Formatting for Visualization
+        function step4Software() {
+            if (currentStep < 3) {
+                addLogEntry('Error: Must run Step 3 (Marketing) first.', 'error', 'Pipeline');
+                return;
+            }
+            if (currentStep >= 4) {
+                addLogEntry('Software step already applied. Skipping.', 'warning', 'Pipeline');
+                return;
+            }
+            listData = listData.map(item => {
+                let color = '#10b981'; // Default: Green (High Score)
+                if (item.score_scaled <= 0.3) {
+                    color = '#ef4444'; // Red: Low score/High risk
+                } else if (item.score_scaled <= 0.6) {
+                    color = '#fbbf24'; // Yellow: Moderate
+                }
+                
+                return {
+                    ...item,
+                    color: color // Adds style cue, similar to software features
+                };
+            });
+            
+            pipelineTitle.textContent = "Step 4: Software Enhancement (Conditional Formatting Applied)";
+            currentStep = 4;
+            renderPipelineTable();
+            addLogEntry('Software: Conditional formatting applied (Red/Yellow/Green). Save pending.', 'success', 'Pipeline');
+            checkState(true);
+        }
+        // --- Initialize SPED Cortex Chart ---
+        function initializeCortexChart() {
+            const chartCanvas = document.getElementById('cortex-chart');
+            if (!chartCanvas) return;
+            
+            const ctx = chartCanvas.getContext('2d');
+            let width, height;
+
+            function resizeChart() {
+                width = chartCanvas.width = chartCanvas.offsetWidth;
+                height = chartCanvas.height = chartCanvas.offsetHeight;
+                drawChart();
+            }
+
+            function drawChart() {
+                if (!ctx || !width || !height) return;
+                
+                // Simple line chart showing query latency over time
+                ctx.clearRect(0, 0, width, height);
+                ctx.strokeStyle = '#8b5cf6';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                // Generate some sample data points
+                const dataPoints = [];
+                const padding = 20;
+                const chartWidth = width - padding * 2;
+                const chartHeight = height - padding * 2;
+
+                for (let i = 0; i < 10; i++) {
+                    dataPoints.push({
+                        x: (chartWidth / 9) * i + padding, // Use 9 segments for 10 points
+                        y: (height - padding) - (Math.random() * chartHeight * 0.8 + chartHeight * 0.1)
+                    });
+                }
+                
+                // Draw the line
+                ctx.moveTo(dataPoints[0].x, dataPoints[0].y);
+                for (let i = 1; i < dataPoints.length; i++) {
+                    ctx.lineTo(dataPoints[i].x, dataPoints[i].y);
+                }
+                ctx.stroke();
+                
+                // Draw data points
+                ctx.fillStyle = '#8b5cf6';
+                dataPoints.forEach(point => {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                // Draw axes
+                ctx.strokeStyle = '#4b5563';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padding, height - padding);
+                ctx.lineTo(width - padding, height - padding); // X-axis
+                ctx.moveTo(padding, padding);
+                ctx.lineTo(padding, height - padding); // Y-axis
+                ctx.stroke();
+
+                // Add axis labels
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('Time', width / 2, height - padding / 2 + 5);
+                ctx.save();
+                ctx.translate(padding / 2 - 5, height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('Latency (ms)', 0, 0);
+                ctx.restore();
+            }
+
+            // Initial draw and resize listener
+            resizeChart();
+            // Redraw on tab click in case it was hidden
+            document.querySelectorAll('.tablinks[onclick*="cortex-metrics"]').forEach(btn => {
+                btn.addEventListener('click', () => setTimeout(resizeChart, 10));
+            });
+            window.addEventListener('resize', resizeChart);
+        }
+        
+        // --- Initialization on Load ---
+        window.onload = function() {
+            // Initialize Lucide icons
+            lucide.createIcons();
+            
+            // API key modal logic removed.
+            
+            // Initialize SPED Cortex
+            initializeSPEDCortex();
+            
+            // Part 1: CSC Setup (Handles persistence load)
+            setupCanvas();
+            window.addEventListener('resize', setupCanvas);
+            
+            // Part 7: Pipeline Setup (Handles persistence load)
+            renderPipelineTable(false); 
+            
+            // Part 2: Memory/Status Init
+            // If we loaded successfully, we assume it was saved previously. Otherwise, flag unsaved.
+            checkState(localStorage.getItem(LS_KEY_NODES) === null);
+            
+            // Initialize SPED Cortex Chart
+            initializeCortexChart();
+            
+            // Initial log messages
+            addLogEntry('ESN Dashboard with SPED Cortex Coordinator ready. State check complete.', 'system', 'System');
+            addLogEntry('SPED Cortex is grounded and ready to coordinate ESN components.', 'cortex', 'Cortex');
+        };
+    </script>
+</body>
+</html>
